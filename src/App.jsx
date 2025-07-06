@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
@@ -579,7 +579,7 @@ function App() {
     }, [db, userId, itinerary]);
 
     return (
-        <div>
+        <div className="bg-stone-100 min-h-screen font-sans">
             <ItineraryHeader onShare={handleShare} isReadOnly={isReadOnly} />
             <main className="max-w-4xl mx-auto p-4 sm:p-8">
                 <div className="space-y-6">
