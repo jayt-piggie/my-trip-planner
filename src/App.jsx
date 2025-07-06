@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
-import { format, parseISO, addDays, isFuture, isToday } from 'date-fns';
+import { format, parseISO, addDays, isFuture, isToday, differenceInDays } from 'date-fns';
 
 // --- Helper Functions & Initial Data ---
 const firebaseConfig = {
@@ -82,15 +82,28 @@ const useWeather = (city, date) => {
     const [weather, setWeather] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     useEffect(() => {
-        if (!city || city === 'Travel' || !(isToday(parseISO(date)) || isFuture(parseISO(date)))) {
+        const parsedDate = parseISO(date);
+        const daysFromNow = differenceInDays(parsedDate, new Date());
+
+        if (!city || city === 'Travel' || !date || daysFromNow < 0 || daysFromNow > 15) {
             setIsLoading(false);
             return;
         }
+
         setIsLoading(true);
         const coords = {'London': { lat: 51.5074, lon: -0.1278 }, 'Paris': { lat: 48.8566, lon: 2.3522 }};
         const { lat, lon } = coords[city];
-        const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&start_date=${date}&end_date=${date}`;
-        fetch(apiUrl).then(res => res.json()).then(data => {
+        
+        const formattedDate = format(parsedDate, 'yyyy-MM-dd');
+        
+        const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&start_date=${formattedDate}&end_date=${formattedDate}`;
+        
+        fetch(apiUrl).then(res => {
+            if (!res.ok) {
+                throw new Error(`Weather API responded with status: ${res.status}`);
+            }
+            return res.json();
+        }).then(data => {
             if (data.daily && data.daily.temperature_2m_max) {
                 setWeather({maxTemp: Math.round(data.daily.temperature_2m_max[0]), minTemp: Math.round(data.daily.temperature_2m_min[0]), code: data.daily.weathercode[0]});
             }
