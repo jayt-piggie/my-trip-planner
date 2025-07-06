@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
@@ -51,7 +51,7 @@ const generateInitialItinerary = () => {
         if (currentDate >= parisStartDate && currentDate <= parisEndDate) {
             dayData.city = 'Paris';
             dayData.title = 'A Day in Paris';
-            dayData.icon = '🇫🇷';
+            dayData.icon = '🇫�';
         } else if (format(currentDate, 'yyyy-MM-dd') === format(travelToParisDate, 'yyyy-MM-dd')) {
             dayData.title = 'Travel Day: London to Paris';
             dayData.city = 'Travel';
@@ -82,36 +82,51 @@ const useWeather = (city, date) => {
     const [weather, setWeather] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     useEffect(() => {
-        const parsedDate = parseISO(date);
-        const daysFromNow = differenceInDays(parsedDate, new Date());
+        try {
+            if (!city || city === 'Travel' || !date) {
+                setIsLoading(false);
+                return;
+            }
 
-        if (!city || city === 'Travel' || !date || daysFromNow < 0 || daysFromNow > 15) {
+            const parsedDate = parseISO(date);
+            if (isNaN(parsedDate.getTime())) {
+                setIsLoading(false);
+                return;
+            }
+
+            const daysFromNow = differenceInDays(parsedDate, new Date());
+
+            if (daysFromNow < 0 || daysFromNow > 15) {
+                setIsLoading(false);
+                return;
+            }
+            
+            setIsLoading(true);
+            const coords = {'London': { lat: 51.5074, lon: -0.1278 }, 'Paris': { lat: 48.8566, lon: 2.3522 }};
+            const { lat, lon } = coords[city];
+            
+            const formattedDate = format(parsedDate, 'yyyy-MM-dd');
+            
+            const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&start_date=${formattedDate}&end_date=${formattedDate}`;
+            
+            fetch(apiUrl).then(res => {
+                if (!res.ok) {
+                    throw new Error(`Weather API responded with status: ${res.status}`);
+                }
+                return res.json();
+            }).then(data => {
+                if (data.daily && data.daily.temperature_2m_max) {
+                    setWeather({maxTemp: Math.round(data.daily.temperature_2m_max[0]), minTemp: Math.round(data.daily.temperature_2m_min[0]), code: data.daily.weathercode[0]});
+                }
+                setIsLoading(false);
+            }).catch(error => {
+                console.error("Failed to fetch weather:", error);
+                setIsLoading(false);
+            });
+        } catch (e) {
+            console.error("Error in useWeather hook:", e);
             setIsLoading(false);
-            return;
         }
-
-        setIsLoading(true);
-        const coords = {'London': { lat: 51.5074, lon: -0.1278 }, 'Paris': { lat: 48.8566, lon: 2.3522 }};
-        const { lat, lon } = coords[city];
-        
-        const formattedDate = format(parsedDate, 'yyyy-MM-dd');
-        
-        const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&start_date=${formattedDate}&end_date=${formattedDate}`;
-        
-        fetch(apiUrl).then(res => {
-            if (!res.ok) {
-                throw new Error(`Weather API responded with status: ${res.status}`);
-            }
-            return res.json();
-        }).then(data => {
-            if (data.daily && data.daily.temperature_2m_max) {
-                setWeather({maxTemp: Math.round(data.daily.temperature_2m_max[0]), minTemp: Math.round(data.daily.temperature_2m_min[0]), code: data.daily.weathercode[0]});
-            }
-            setIsLoading(false);
-        }).catch(error => {
-            console.error("Failed to fetch weather:", error);
-            setIsLoading(false);
-        });
     }, [city, date]);
     return { weather, isLoading };
 };
@@ -610,4 +625,3 @@ function App() {
 }
 
 export default App;
-
