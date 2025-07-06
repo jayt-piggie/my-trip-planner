@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
@@ -13,7 +13,6 @@ const firebaseConfig = {
   messagingSenderId: "1019096417355",
   appId: "1:1019096417355:web:e7f0211bbfd08d556679ce"
 };
-const appId = 'trip-itinerary-viewer';
 
 const parseMarkdown = (text) => {
     if (window.marked) {
@@ -52,7 +51,7 @@ const generateInitialItinerary = () => {
         if (currentDate >= parisStartDate && currentDate <= parisEndDate) {
             dayData.city = 'Paris';
             dayData.title = 'A Day in Paris';
-            dayData.icon = '🇫�';
+            dayData.icon = '🇫🇷';
         } else if (format(currentDate, 'yyyy-MM-dd') === format(travelToParisDate, 'yyyy-MM-dd')) {
             dayData.title = 'Travel Day: London to Paris';
             dayData.city = 'Travel';
@@ -424,9 +423,9 @@ function App() {
         if (id) setShareId(id);
         
         try {
-            initializeApp(firebaseConfig);
-            const firestore = getFirestore();
-            const authInstance = getAuth();
+            const app = initializeApp(firebaseConfig);
+            const firestore = getFirestore(app);
+            const authInstance = getAuth(app);
             setDb(firestore);
             setAuth(authInstance);
         } catch (e) { console.error("Firebase initialization failed:", e); setError("Could not initialize the application."); setIsLoading(false); }
@@ -444,7 +443,7 @@ function App() {
     useEffect(() => {
         if (!db) return;
         if (shareId) {
-            const docRef = doc(db, `artifacts/${appId}/public/data/shared_itineraries`, shareId);
+            const docRef = doc(db, `shared_itineraries`, shareId);
             const loadSharedItinerary = async () => {
                 try {
                     const docSnap = await getDoc(docRef);
@@ -461,7 +460,7 @@ function App() {
             loadSharedItinerary();
         } else if (userId) {
             const loadUserItinerary = async () => {
-                const collectionPath = `artifacts/${appId}/users/${userId}/tripDays`;
+                const collectionPath = `users/${userId}/tripDays`;
                 const initialDays = generateInitialItinerary();
                 try {
                     const firstDocSnap = await getDoc(doc(db, collectionPath, initialDays[0].id));
@@ -489,7 +488,7 @@ function App() {
     const handlePublish = useCallback(async (dayId, notes, photoUrl, locations) => {
         if (!db || !userId) return;
         setIsSaving(true);
-        const dayDocRef = doc(db, `artifacts/${appId}/users/${userId}/tripDays`, dayId);
+        const dayDocRef = doc(db, `users/${userId}/tripDays`, dayId);
         const updatedData = { notes, photoUrl, locations, isPublished: true };
         try {
             await updateDoc(dayDocRef, updatedData);
@@ -500,7 +499,7 @@ function App() {
 
     const handleEdit = useCallback(async (dayId) => {
         if (!db || !userId) return;
-        const dayDocRef = doc(db, `artifacts/${appId}/users/${userId}/tripDays`, dayId);
+        const dayDocRef = doc(db, `users/${userId}/tripDays`, dayId);
         const updatedData = { isPublished: false };
         try {
             await updateDoc(dayDocRef, updatedData);
@@ -511,13 +510,13 @@ function App() {
 
     const handleShare = useCallback(async () => {
         if (!db || !userId) return;
-        const metaRef = doc(db, `artifacts/${appId}/users/${userId}/meta/share`);
+        const metaRef = doc(db, `users/${userId}/meta`, 'share');
         let currentShareId;
         try {
             const metaSnap = await getDoc(metaRef);
             if (metaSnap.exists()) { currentShareId = metaSnap.data().id; } 
             else { currentShareId = crypto.randomUUID(); await setDoc(metaRef, { id: currentShareId }); }
-            const publicDocRef = doc(db, `artifacts/${appId}/public/data/shared_itineraries`, currentShareId);
+            const publicDocRef = doc(db, `shared_itineraries`, currentShareId);
             const publishedItinerary = itinerary.map(day => day.isPublished ? day : { ...day, notes: '', photoUrl: '', locations: [] });
             await setDoc(publicDocRef, { days: publishedItinerary });
             const url = `${window.location.origin}${window.location.pathname}?shareId=${currentShareId}`;
@@ -538,8 +537,8 @@ function App() {
         const targetContent = { notes: targetDay.notes, photoUrl: targetDay.photoUrl, locations: targetDay.locations, isPublished: targetDay.isPublished };
 
         const batch = writeBatch(db);
-        const sourceDocRef = doc(db, `artifacts/${appId}/users/${userId}/tripDays`, sourceId);
-        const targetDocRef = doc(db, `artifacts/${appId}/users/${userId}/tripDays`, targetId);
+        const sourceDocRef = doc(db, `users/${userId}/tripDays`, sourceId);
+        const targetDocRef = doc(db, `users/${userId}/tripDays`, targetId);
         batch.update(sourceDocRef, targetContent);
         batch.update(targetDocRef, sourceContent);
 
