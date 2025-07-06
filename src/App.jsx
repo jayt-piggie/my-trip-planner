@@ -579,7 +579,7 @@ function App() {
     }, [db, userId, itinerary]);
 
     return (
-        <div className="bg-stone-100 min-h-screen font-sans">
+        <div>
             <ItineraryHeader onShare={handleShare} isReadOnly={isReadOnly} />
             <main className="max-w-4xl mx-auto p-4 sm:p-8">
                 <div className="space-y-6">
