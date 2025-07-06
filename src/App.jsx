@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
-import { format, parseISO, addDays, isFuture, isToday } from 'date-fns';
+import { format, parseISO, addDays, isFuture, isToday, differenceInDays } from 'date-fns';
 
 // --- Helper Functions & Initial Data ---
 const firebaseConfig = {
@@ -82,13 +82,10 @@ const useWeather = (city, date) => {
     const [weather, setWeather] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     useEffect(() => {
-        if (!city || city === 'Travel' || !date) {
-            setIsLoading(false);
-            return;
-        }
-
         const parsedDate = parseISO(date);
-        if (!(isToday(parsedDate) || isFuture(parsedDate))) {
+        const daysFromNow = differenceInDays(parsedDate, new Date());
+
+        if (!city || city === 'Travel' || !date || daysFromNow < 0 || daysFromNow > 15) {
             setIsLoading(false);
             return;
         }
