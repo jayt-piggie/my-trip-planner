@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
@@ -51,7 +51,7 @@ const generateInitialItinerary = () => {
         if (currentDate >= parisStartDate && currentDate <= parisEndDate) {
             dayData.city = 'Paris';
             dayData.title = 'A Day in Paris';
-            dayData.icon = '🇫�';
+            dayData.icon = '🇫🇷';
         } else if (format(currentDate, 'yyyy-MM-dd') === format(travelToParisDate, 'yyyy-MM-dd')) {
             dayData.title = 'Travel Day: London to Paris';
             dayData.city = 'Travel';
