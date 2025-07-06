@@ -13,7 +13,6 @@ const firebaseConfig = {
   messagingSenderId: "1019096417355",
   appId: "1:1019096417355:web:e7f0211bbfd08d556679ce"
 };
-const appId = 'trip-itinerary-viewer'; // Static App ID for local build
 
 const parseMarkdown = (text) => {
     if (window.marked) {
@@ -21,7 +20,6 @@ const parseMarkdown = (text) => {
     }
     return text.replace(/\n/g, '<br />');
 };
-
 
 const getWeatherIcon = (code) => {
     const icons = {0: '☀️', 1: '🌤️', 2: '⛅️', 3: '☁️', 45: '🌫️', 48: '🌫️', 51: '🌦️', 53: '🌦️', 55: '🌦️', 61: '🌧️', 63: '🌧️', 65: '🌧️', 71: '🌨️', 73: '🌨️', 75: '🌨️', 80: '🌧️', 81: '🌧️', 82: '⛈️', 95: '⛈️'};
@@ -53,7 +51,7 @@ const generateInitialItinerary = () => {
         if (currentDate >= parisStartDate && currentDate <= parisEndDate) {
             dayData.city = 'Paris';
             dayData.title = 'A Day in Paris';
-            dayData.icon = '🇫�';
+            dayData.icon = '🇫🇷';
         } else if (format(currentDate, 'yyyy-MM-dd') === format(travelToParisDate, 'yyyy-MM-dd')) {
             dayData.title = 'Travel Day: London to Paris';
             dayData.city = 'Travel';
@@ -436,39 +434,49 @@ function App() {
     useEffect(() => {
         if (!auth || shareId) return;
         const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (user) setUserId(user.uid);
-            else signInAnonymously(auth).catch(err => setError("Could not connect to the database."));
+            if (user) {
+                setUserId(user.uid);
+            } else {
+                signInAnonymously(auth).catch(err => setError("Could not connect to the database."));
+            }
         });
         return () => unsubscribe();
     }, [auth, shareId]);
 
     useEffect(() => {
         if (!db) return;
-        if (shareId) {
-            const docRef = doc(db, "shared_itineraries", shareId);
-            const loadSharedItinerary = async () => {
+
+        const loadData = async () => {
+            setIsLoading(true);
+            if (shareId) {
+                const docRef = doc(db, "shared_itineraries", shareId);
                 try {
                     const docSnap = await getDoc(docRef);
-                    if (!docSnap.exists()) { setError("This shared itinerary could not be found."); } 
-                    else {
+                    if (docSnap.exists()) {
                         const daysData = docSnap.data().days || [];
                         daysData.sort((a, b) => new Date(a.date) - new Date(b.date));
                         setItinerary(daysData);
                         setActiveDayId(daysData[0]?.id || null);
+                    } else {
+                        setError("This shared itinerary could not be found.");
                     }
-                } catch (e) { console.error("Error loading shared itinerary:", e); setError("Could not load the shared itinerary."); } 
-                finally { setIsLoading(false); }
-            };
-            loadSharedItinerary();
-        } else if (userId) {
-            const loadUserItinerary = async () => {
+                } catch (e) {
+                    console.error("Error loading shared itinerary:", e);
+                    setError("Could not load the shared itinerary.");
+                } finally {
+                    setIsLoading(false);
+                }
+            } else if (userId) {
                 const collectionPath = `users/${userId}/tripDays`;
                 try {
                     const querySnapshot = await getDocs(collection(db, collectionPath));
                     if (querySnapshot.empty) {
                         const initialDays = generateInitialItinerary();
                         const batch = writeBatch(db);
-                        initialDays.forEach(day => batch.set(doc(db, collectionPath, day.id), day));
+                        initialDays.forEach(day => {
+                            const dayDocRef = doc(db, collectionPath, day.id);
+                            batch.set(dayDocRef, day);
+                        });
                         await batch.commit();
                         setItinerary(initialDays);
                     } else {
@@ -483,10 +491,20 @@ function App() {
                 } finally {
                     setIsLoading(false);
                 }
-            };
-            loadUserItinerary();
+            }
+        };
+
+        if (shareId || userId) {
+            loadData();
+        } else if (!shareId) {
+            // If we are not in a shared view and still waiting for userId, do nothing yet.
+            // This prevents trying to load data before authentication is complete.
+        } else {
+            setIsLoading(false);
         }
+
     }, [db, userId, shareId]);
+
 
     const handleSelectDay = (dayId) => !isReadOnly && setActiveDayId(prevId => (prevId === dayId ? null : dayId));
     
