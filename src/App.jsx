@@ -13,6 +13,7 @@ const firebaseConfig = {
   messagingSenderId: "1019096417355",
   appId: "1:1019096417355:web:e7f0211bbfd08d556679ce"
 };
+const appId = 'trip-itinerary-viewer'; // Static App ID for local build
 
 const parseMarkdown = (text) => {
     if (window.marked) {
@@ -20,6 +21,7 @@ const parseMarkdown = (text) => {
     }
     return text.replace(/\n/g, '<br />');
 };
+
 
 const getWeatherIcon = (code) => {
     const icons = {0: '☀️', 1: '🌤️', 2: '⛅️', 3: '☁️', 45: '🌫️', 48: '🌫️', 51: '🌦️', 53: '🌦️', 55: '🌦️', 61: '🌧️', 63: '🌧️', 65: '🌧️', 71: '🌨️', 73: '🌨️', 75: '🌨️', 80: '🌧️', 81: '🌧️', 82: '⛈️', 95: '⛈️'};
@@ -51,7 +53,7 @@ const generateInitialItinerary = () => {
         if (currentDate >= parisStartDate && currentDate <= parisEndDate) {
             dayData.city = 'Paris';
             dayData.title = 'A Day in Paris';
-            dayData.icon = '🇫🇷';
+            dayData.icon = '🇫�';
         } else if (format(currentDate, 'yyyy-MM-dd') === format(travelToParisDate, 'yyyy-MM-dd')) {
             dayData.title = 'Travel Day: London to Paris';
             dayData.city = 'Travel';
@@ -443,7 +445,7 @@ function App() {
     useEffect(() => {
         if (!db) return;
         if (shareId) {
-            const docRef = doc(db, `shared_itineraries`, shareId);
+            const docRef = doc(db, "shared_itineraries", shareId);
             const loadSharedItinerary = async () => {
                 try {
                     const docSnap = await getDoc(docRef);
@@ -461,23 +463,26 @@ function App() {
         } else if (userId) {
             const loadUserItinerary = async () => {
                 const collectionPath = `users/${userId}/tripDays`;
-                const initialDays = generateInitialItinerary();
                 try {
-                    const firstDocSnap = await getDoc(doc(db, collectionPath, initialDays[0].id));
-                    if (!firstDocSnap.exists()) {
+                    const querySnapshot = await getDocs(collection(db, collectionPath));
+                    if (querySnapshot.empty) {
+                        const initialDays = generateInitialItinerary();
                         const batch = writeBatch(db);
                         initialDays.forEach(day => batch.set(doc(db, collectionPath, day.id), day));
                         await batch.commit();
                         setItinerary(initialDays);
                     } else {
-                        const docSnapshots = await Promise.all(initialDays.map(day => getDoc(doc(db, collectionPath, day.id))));
-                        const loadedDays = docSnapshots.map(snap => snap.data());
-                        loadedDays.sort((a, b) => new Date(a.date) - new Date(b.date));
-                        setItinerary(loadedDays);
+                        const daysData = querySnapshot.docs.map(doc => doc.data());
+                        daysData.sort((a, b) => new Date(a.date) - new Date(b.date));
+                        setItinerary(daysData);
                     }
-                    setActiveDayId(initialDays[0]?.id || null);
-                } catch (e) { setError("A problem occurred while loading your itinerary."); } 
-                finally { setIsLoading(false); }
+                    setActiveDayId(generateInitialItinerary()[0]?.id || null);
+                } catch (e) {
+                    console.error("Error loading user itinerary:", e);
+                    setError("A problem occurred while loading your itinerary.");
+                } finally {
+                    setIsLoading(false);
+                }
             };
             loadUserItinerary();
         }
@@ -561,9 +566,10 @@ function App() {
             <ItineraryHeader onShare={handleShare} isReadOnly={isReadOnly} />
             <main className="max-w-4xl mx-auto p-4 sm:p-8">
                 <div className="space-y-6">
-                    {itinerary.map(day => (
+                    {isLoading ? <LoadingSpinner /> : itinerary.map(day => (
                         <ItineraryDay key={day.id} day={day} onSelect={handleSelectDay} isActive={activeDayId === day.id} onPublish={handlePublish} onEdit={handleEdit} isSaving={isSaving && activeDayId === day.id} isReadOnly={isReadOnly} onMoveRequest={handleMoveRequest} apiKey={apiKey}/>
                     ))}
+                    {error && <p className="text-red-500 text-center">{error}</p>}
                 </div>
             </main>
             <footer className="text-center py-8 text-stone-500 text-sm"><p>Have a wonderful trip!</p></footer>
