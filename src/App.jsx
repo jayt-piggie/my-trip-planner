@@ -13,6 +13,7 @@ const firebaseConfig = {
   messagingSenderId: "1019096417355",
   appId: "1:1019096417355:web:e7f0211bbfd08d556679ce"
 };
+const appId = 'trip-itinerary-viewer';
 
 const parseMarkdown = (text) => {
     if (window.marked) {
