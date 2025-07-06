@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
@@ -497,7 +497,6 @@ function App() {
         if (shareId || userId) {
             loadData();
         } else if (!shareId) {
-            // If we are not in a shared view and still waiting for userId, do nothing yet.
             // This prevents trying to load data before authentication is complete.
         } else {
             setIsLoading(false);
