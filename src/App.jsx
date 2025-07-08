@@ -5,14 +5,16 @@ import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, writeBatch, g
 import { format, parseISO, addDays, isFuture, isToday, differenceInDays } from 'date-fns';
 
 // --- Helper Functions & Initial Data ---
+
 const firebaseConfig = {
   apiKey: "AIzaSyBeVV089xto5m_j9u_mWJDU__Qne5ka-ug",
   authDomain: "my-trip-planner-70930.firebaseapp.com",
   projectId: "my-trip-planner-70930",
-  storageBucket: "my-trip-planner-70930.appspot.com",
+  storageBucket: "my-trip-planner-70930.firebasestorage.app",
   messagingSenderId: "1019096417355",
   appId: "1:1019096417355:web:e7f0211bbfd08d556679ce"
 };
+
 
 const parseMarkdown = (text) => {
     if (window.marked) {
